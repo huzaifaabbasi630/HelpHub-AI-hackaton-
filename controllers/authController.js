@@ -72,10 +72,15 @@ exports.verifyEmail = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { name, email, password } = req.body;
         const user = await User.findOne({ email });
 
         if (user && (await user.matchPassword(password))) {
+            // Strict check: Name must also match
+            if (user.name !== name) {
+                return res.status(401).json({ message: 'Name does not match our records' });
+            }
+
             if (!user.isVerified) {
                 return res.status(401).json({ message: 'Please verify your email first' });
             }
@@ -83,6 +88,7 @@ exports.login = async (req, res) => {
                 _id: user._id,
                 name: user.name,
                 email: user.email,
+                role: user.role, // Added role for frontend usage
                 token: generateToken(user._id),
             });
         } else {

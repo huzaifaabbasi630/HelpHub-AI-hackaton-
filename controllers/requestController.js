@@ -1,21 +1,20 @@
 const Request = require('../models/Request');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
+const { analyzeRequest } = require('../utils/gemini');
 
 exports.createRequest = async (req, res) => {
     try {
         const { title, description, urgency } = req.body;
         
-        // AI Feature: Auto category
-        let category = 'General';
-        const desc = description.toLowerCase();
-        if (desc.includes('error') || desc.includes('code') || desc.includes('programming')) {
-            category = 'Programming';
-        } else if (desc.includes('design') || desc.includes('ui') || desc.includes('color')) {
-            category = 'Design';
+        // Role check
+        if (req.user.role === 'Can Help') {
+            return res.status(403).json({ message: 'Your role does not allow creating requests' });
         }
 
-        // AI Feature: Tag suggestion (first 3 keywords or simple split)
-        const tags = description.split(' ').filter(word => word.length > 4).slice(0, 3);
+        // Real-time Gemini Analysis
+        const aiAnalysis = await analyzeRequest(description);
+        const { category, tags, summary } = aiAnalysis;
 
         const request = await Request.create({
             title,
@@ -23,8 +22,19 @@ exports.createRequest = async (req, res) => {
             category,
             tags,
             urgency,
+            aiSummary: summary,
             createdBy: req.user.id,
         });
+
+        // NOTIFICATION: Alert all users about new request (Simplified)
+        const allUsers = await User.find({ _id: { $ne: req.user.id } }).limit(5); // Limit for performance in demo
+        for (const user of allUsers) {
+            await Notification.create({
+                user: user._id,
+                message: `New request: ${title}`,
+                type: 'new_request'
+            });
+        }
 
         res.status(201).json(request);
     } catch (error) {
@@ -61,6 +71,11 @@ exports.helpOnRequest = async (req, res) => {
         const request = await Request.findById(req.params.id);
         if (!request) return res.status(404).json({ message: 'Request not found' });
 
+        // Role check: Only "Can Help" or "Both" can offer help
+        if (req.user.role === 'Need Help') {
+            return res.status(403).json({ message: 'Your role does not allow offering help' });
+        }
+
         if (request.helpers.includes(req.user.id)) {
             return res.status(400).json({ message: 'Already offering help' });
         }
@@ -74,6 +89,13 @@ exports.helpOnRequest = async (req, res) => {
         await user.save();
 
         res.json({ message: 'Offer to help added' });
+
+        // NOTIFICATION: Alert the creator that someone is helping
+        await Notification.create({
+            user: request.createdBy,
+            message: `${req.user.name} offered to help with your request: ${request.title}`,
+            type: 'help_offer'
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -98,6 +120,15 @@ exports.solveRequest = async (req, res) => {
                 solver.trustScore += 20;
                 await solver.save();
             }
+        }
+
+        // NOTIFICATION: Alert helpers that request is solved
+        for (const helperId of request.helpers) {
+            await Notification.create({
+                user: helperId,
+                message: `Request solved: ${request.title}. You earned trust points!`,
+                type: 'solved'
+            });
         }
 
         res.json({ message: 'Request marked as solved' });

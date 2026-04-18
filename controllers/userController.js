@@ -27,22 +27,17 @@ exports.getLeaderboard = async (req, res) => {
     }
 };
 
-// AI Suggest Skills Helper
+const { suggestSkillsForOnboarding } = require('../utils/gemini');
+
+// Existing updateProfile...
+
+// AI Suggest Skills Helper (Gemini Integrated)
 exports.suggestSkills = async (req, res) => {
-    const { interests } = req.body;
-    const suggestions = {
-        coding: ['JavaScript', 'React', 'Node.js', 'Python'],
-        design: ['Figma', 'Photoshop', 'UI/UX', 'Canva'],
-        marketing: ['SEO', 'Content Writing', 'Social Media'],
-    };
-
-    let result = [];
-    interests.forEach(interest => {
-        const lowerInterest = interest.toLowerCase();
-        if (suggestions[lowerInterest]) {
-            result = [...new Set([...result, ...suggestions[lowerInterest]])];
-        }
-    });
-
-    res.json(result);
+    try {
+        const { interests } = req.body;
+        const aiSuggestions = await suggestSkillsForOnboarding(interests);
+        res.json(aiSuggestions); // Returns { canHelp, needHelp }
+    } catch (error) {
+        res.status(500).json({ message: 'Gemini could not suggest skills' });
+    }
 };

@@ -9,6 +9,7 @@ const requestSchema = new mongoose.Schema({
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     helpers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     status: { type: String, enum: ['open', 'solved'], default: 'open' },
+    aiSummary: { type: String },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Request', requestSchema);
