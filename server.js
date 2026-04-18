@@ -10,7 +10,16 @@ dotenv.config();
 connectDB();
 
 const app = express();
-app.use(cors());
+
+const corsOptions = {
+    origin: [
+        'http://localhost:5173', // Local React (Vite)
+        process.env.FRONTEND_URL  // Production Frontend
+    ],
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
