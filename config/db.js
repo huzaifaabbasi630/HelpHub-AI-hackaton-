@@ -3,17 +3,24 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
+let isConnected = false;
+
 const connectDB = async () => {
+    if (isConnected) {
+        console.log('Using existing database connection');
+        return;
+    }
+
     try {
         if (!process.env.MONGO_URI) {
             console.error('MONGO_URI is missing in .env file');
             process.exit(1);
         }
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+        const db = await mongoose.connect(process.env.MONGO_URI);
+        isConnected = db.connections[0].readyState;
+        console.log(`MongoDB Connected: ${db.connection.host}`);
     } catch (error) {
         console.error(`MongoDB Error: ${error.message}`);
-        // Don't exit immediately in dev if possible, but for product flow we might need it
         process.exit(1);
     }
 };

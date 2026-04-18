@@ -19,7 +19,10 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Gemini AI Key Detected: ${process.env.GEMINI_API_KEY ? 'YES' : 'NO'}`);
+
+// Root route for Vercel verify
+app.get('/', (req, res) => {
+    res.json({ message: "Helplytics AI Backend is running on Vercel" });
 });
+
+module.exports = app;
